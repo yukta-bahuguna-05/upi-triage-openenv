@@ -124,19 +124,14 @@ def list_tasks():
 
 
 @app.post("/reset", response_model=Observation)
-def reset(request: ResetRequest):
-    """
-    Start a new episode.
-    Returns the first transaction as an Observation.
-    """
+def reset(request: ResetRequest = None):
     global env
     try:
-        difficulty = request.difficulty or "easy"
+        difficulty = "easy"
+        if request and request.difficulty:
+            difficulty = request.difficulty
         if difficulty not in ["easy", "medium", "hard"]:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid difficulty: {difficulty}. Must be easy, medium, or hard."
-            )
+            difficulty = "easy"
         env = UPITriageEnv(difficulty=difficulty)
         observation = env.reset()
         return observation
