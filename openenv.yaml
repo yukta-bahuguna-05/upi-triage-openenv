@@ -1,0 +1,121 @@
+name: upi-triage-env
+version: "1.0.0"
+description: >
+  A real-world OpenEnv environment simulating Indian UPI transaction triage.
+  An AI agent processes a stream of UPI transactions one by one, assigns
+  spending categories, detects fraud and duplicate transactions, and builds
+  a financial summary. Motivated by the real pain point of 500M+ Indian UPI
+  users who cannot make sense of their transaction history.
+
+author: OpenEnv Hackathon Submission
+tags: [openenv, upi, fintech, india, triage, fraud-detection, nlp]
+
+tasks:
+  - id: easy
+    description: 20 clear transactions, no fraud, categorization only
+    num_steps: 20
+    expected_score_range: [0.65, 0.95]
+
+  - id: medium
+    description: 40 mixed transactions with duplicates and fraud
+    num_steps: 40
+    expected_score_range: [0.45, 0.75]
+
+  - id: hard
+    description: 60 cryptic transactions with complex fraud patterns
+    num_steps: 60
+    expected_score_range: [0.25, 0.55]
+
+observation_space:
+  type: object
+  fields:
+    transaction_id: string
+    amount: float
+    merchant_name: string
+    upi_id: string
+    timestamp: string
+    transaction_type: enum[debit, credit]
+    description: string | null
+    bank_ref: string
+    step: int
+    total_steps: int
+    transactions_remaining: int
+    total_spent: float
+    total_received: float
+    category_counts: object
+    flagged_count: int
+    difficulty: enum[easy, medium, hard]
+    recent_history: list[TransactionSummary]
+    spending_trends: list[SpendingTrend]
+    merchant_patterns: list[MerchantPattern]
+    spending_velocity_24h: float
+    time_since_last_txn: float | null
+    deferred_count: int
+    disputed_merchants: list[string]
+    info_context: string | null
+    is_deferred: bool
+
+action_space:
+  type: object
+  fields:
+    transaction_id: string
+    action_type:
+      type: enum
+      values: [categorize, request_info, defer, mark_duplicate, dispute, update_previous, summarize]
+    category:
+      type: enum
+      required_for: [categorize, dispute]
+      values:
+        - food_delivery
+        - groceries
+        - transport
+        - entertainment
+        - utilities
+        - rent
+        - shopping
+        - medical
+        - education
+        - investment
+        - subscription
+        - transfer
+        - bill_split
+        - salary
+        - refund
+        - suspicious
+        - other
+    flag:
+      type: enum
+      required_for: [categorize, dispute]
+      values: [normal, suspicious, duplicate, needs_review]
+    duplicate_of_id: string   # required for mark_duplicate
+    target_id: string         # required for update_previous
+    new_category: string      # required for update_previous
+    confidence: float         # 0.0 to 1.0, optional
+    reasoning: string         # optional
+
+reward:
+  type: dense
+  description: >
+    Reward at every step. Correct category +1.0, partial +0.5.
+    Catching fraud +2.0, missing fraud -1.0, false alarm -0.5.
+    Catching duplicate +1.5. End-of-episode bonus for high accuracy.
+
+grader:
+  type: deterministic
+  score_range: [0.0, 1.0]
+  weights:
+    category_accuracy: 0.50
+    fraud_recall: 0.20
+    duplicate_accuracy: 0.10
+    consistency_score: 0.10
+    action_diversity_score: 0.05
+    false_positive_rate: 0.05
+
+api:
+  endpoints:
+    - POST /reset
+    - POST /step
+    - GET  /state
+    - GET  /tasks
+    - POST /grade
+    - GET  /health
