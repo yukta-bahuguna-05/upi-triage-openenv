@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.scripts]
-server = "api.app:app"
+server = "server.app:main"
 
 [project.urls]
 Homepage = "https://huggingface.co/spaces/yuktabahuguna/upi-triage-openenv"
