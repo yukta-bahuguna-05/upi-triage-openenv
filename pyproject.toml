@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "upi-triage-openenv"
 version = "1.0.0"
@@ -17,4 +21,3 @@ server = "api.app:app"
 
 [project.urls]
 Homepage = "https://huggingface.co/spaces/yuktabahuguna/upi-triage-openenv"
-Repository = "https://github.com/yukta-bahuguna-05/upi-triage-openenv"
