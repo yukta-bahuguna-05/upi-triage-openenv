@@ -1,3 +1,10 @@
+---
+title: UPI Triage OpenEnv
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+---
 # UPI Triage OpenEnv 🇮🇳
 
 An OpenEnv-compatible environment for **Indian UPI transaction triage**.
