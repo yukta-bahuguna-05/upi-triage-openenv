@@ -257,20 +257,11 @@ def categorize_transaction(observation: dict) -> dict:
 
 def run_task(difficulty: str) -> dict:
     reset_memory()
-    print(f"[START] task={difficulty}", flush=True)
+
+    # ✅ FIRST LINE MUST BE START
+    log_start(task=difficulty, env=BENCHMARK, model=MODEL_NAME)
 
     headers = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
-
-    # Reset environment
-    response = requests.post(
-        f"{API_BASE_URL}/reset",
-        json={"difficulty": difficulty},
-        headers=headers
-    )
-    response.raise_for_status()
-    observation = response.json()
-
-    log_start(task=difficulty, env=BENCHMARK, model=MODEL_NAME)
 
     step_count   = 0
     rewards      = []
@@ -278,9 +269,19 @@ def run_task(difficulty: str) -> dict:
     success      = False
 
     try:
+        # Reset AFTER start
+        response = requests.post(
+            f"{API_BASE_URL}/reset",
+            json={"difficulty": difficulty},
+            headers=headers
+        )
+        response.raise_for_status()
+        observation = response.json()
+
         while True:
             step_count += 1
-            action     = categorize_transaction(observation)
+
+            action = categorize_transaction(observation)
             action_str = f"categorize(id={action['transaction_id']},cat={action['category']},flag={action['flag']})"
 
             step_resp = requests.post(
@@ -296,8 +297,15 @@ def run_task(difficulty: str) -> dict:
             error  = result.get("info", {}).get("error", None)
 
             rewards.append(reward)
-            print(f"[STEP] step={step_count} reward={reward}", flush=True)
-            log_step(step=step_count, action=action_str, reward=reward, done=done, error=error)
+
+            # ✅ ONLY THIS (no extra prints)
+            log_step(
+                step=step_count,
+                action=action_str,
+                reward=reward,
+                done=done,
+                error=error
+            )
 
             if done:
                 break
@@ -306,7 +314,7 @@ def run_task(difficulty: str) -> dict:
             if observation is None:
                 break
 
-        # Get final grade
+        # Final grade
         grade_resp = requests.post(f"{API_BASE_URL}/grade", headers=headers)
         grade_resp.raise_for_status()
         grade_result = grade_resp.json()
@@ -314,12 +322,12 @@ def run_task(difficulty: str) -> dict:
         score   = grade_result.get("score", 0.0)
         success = score >= 0.5
 
-    except Exception as e:
-        print(f"[END] task={difficulty} score=0.0 steps={step_count}", flush=True)
+    except Exception:
+        # ✅ ALWAYS end properly
         log_end(success=False, steps=step_count, score=0.0, rewards=rewards)
-        return {"score": 0.0, "error": str(e)}
+        return {"score": 0.0}
 
-    print(f"[END] task={difficulty} score={score} steps={step_count}", flush=True)
+    # ✅ FINAL LINE
     log_end(success=success, steps=step_count, score=score, rewards=rewards)
     return grade_result
     
