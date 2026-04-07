@@ -257,6 +257,7 @@ def categorize_transaction(observation: dict) -> dict:
 
 def run_task(difficulty: str) -> dict:
     reset_memory()
+    print(f"[START] task={difficulty}", flush=True)
 
     headers = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
 
@@ -295,6 +296,7 @@ def run_task(difficulty: str) -> dict:
             error  = result.get("info", {}).get("error", None)
 
             rewards.append(reward)
+            print(f"[STEP] step={step_count} reward={reward}", flush=True)
             log_step(step=step_count, action=action_str, reward=reward, done=done, error=error)
 
             if done:
@@ -313,11 +315,14 @@ def run_task(difficulty: str) -> dict:
         success = score >= 0.5
 
     except Exception as e:
+        print(f"[END] task={difficulty} score=0.0 steps={step_count}", flush=True)
         log_end(success=False, steps=step_count, score=0.0, rewards=rewards)
         return {"score": 0.0, "error": str(e)}
 
+    print(f"[END] task={difficulty} score={score} steps={step_count}", flush=True)
     log_end(success=success, steps=step_count, score=score, rewards=rewards)
     return grade_result
+    
 
 
 # ─────────────────────────────────────────────────────────────
