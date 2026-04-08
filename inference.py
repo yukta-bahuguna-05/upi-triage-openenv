@@ -30,11 +30,14 @@ HF_TOKEN       = os.getenv("HF_TOKEN", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 BENCHMARK      = "upi-triage-openenv"
 
-# OpenAI client for LLM calls
-client = OpenAI(
-    api_key=OPENAI_API_KEY or HF_TOKEN,
-    base_url=None,
-)
+# OpenAI client — use dummy key if none provided to avoid startup crash
+try:
+    client = OpenAI(
+        api_key=OPENAI_API_KEY or HF_TOKEN or "dummy-key",
+        base_url=None,
+    )
+except Exception:
+    client = None
 
 # ─────────────────────────────────────────────────────────────
 # STDOUT LOGGING — exact required format
@@ -258,7 +261,7 @@ def categorize_transaction(observation: dict) -> dict:
 def run_task(difficulty: str) -> dict:
     reset_memory()
 
-    # ✅ FIRST LINE MUST BE START
+    # ✅ FIRST LINE MUST BE START — print before anything else
     log_start(task=difficulty, env=BENCHMARK, model=MODEL_NAME)
 
     headers = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
@@ -269,11 +272,12 @@ def run_task(difficulty: str) -> dict:
     success      = False
 
     try:
-        # Reset AFTER start
+        # Reset environment
         response = requests.post(
             f"{API_BASE_URL}/reset",
             json={"difficulty": difficulty},
-            headers=headers
+            headers=headers,
+            timeout=30,
         )
         response.raise_for_status()
         observation = response.json()
@@ -287,7 +291,8 @@ def run_task(difficulty: str) -> dict:
             step_resp = requests.post(
                 f"{API_BASE_URL}/step",
                 json={"action": action},
-                headers=headers
+                headers=headers,
+                timeout=30,
             )
             step_resp.raise_for_status()
             result = step_resp.json()
@@ -298,7 +303,6 @@ def run_task(difficulty: str) -> dict:
 
             rewards.append(reward)
 
-            # ✅ ONLY THIS (no extra prints)
             log_step(
                 step=step_count,
                 action=action_str,
@@ -315,22 +319,23 @@ def run_task(difficulty: str) -> dict:
                 break
 
         # Final grade
-        grade_resp = requests.post(f"{API_BASE_URL}/grade", headers=headers)
+        grade_resp = requests.post(
+            f"{API_BASE_URL}/grade",
+            headers=headers,
+            timeout=30,
+        )
         grade_resp.raise_for_status()
         grade_result = grade_resp.json()
 
         score   = grade_result.get("score", 0.0)
         success = score >= 0.5
 
-    except Exception:
-        # ✅ ALWAYS end properly
+    except Exception as e:
         log_end(success=False, steps=step_count, score=0.0, rewards=rewards)
         return {"score": 0.0}
 
-    # ✅ FINAL LINE
     log_end(success=success, steps=step_count, score=score, rewards=rewards)
     return grade_result
-    
 
 
 # ─────────────────────────────────────────────────────────────
